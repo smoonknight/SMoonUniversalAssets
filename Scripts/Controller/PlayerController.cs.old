@@ -1,0 +1,779 @@
+using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using System.Collections.Generic;
+using System.Collections;
+using static PlayerInventoryController;
+
+using UnityEngine.InputSystem.EnhancedTouch;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
+
+[RequireComponent(typeof(PlayerInventoryController))]
+[RequireComponent(typeof(MovementController))]
+[RequireComponent(typeof(FlashlightController))]
+public class PlayerController : MonoBehaviour, IDamageable, ITargetable, IAutomaticDoorInteractable, IOutOfBoundable
+{
+    [Header("Light Source Placement")]
+    public Transform lightSourceMain;
+    [Header("Light Source")]
+    public GameObject disableStateLightSource;
+    [Header("Main camera of Player and Head")]
+    public Transform cameraHolder;
+    public Transform cameraShaker;
+    public GameObject cameraFall { get; private set; }
+    public Transform body;
+    [Header("Stat")]
+    float maximumHealth = 100;
+
+    public float maximumHealthAbility => 100 + (10 * PlayerPrefsManager.Instance.GetInt(IntPrefsEnum.PlayerData_Ability_Health_Pip));
+
+    public float health;
+    [Header("Item Interactable Icon Image")]
+    public Image interactableImage;
+    [Header("UI Player")]
+    public CanvasGroup primaryEventPanel;
+    public CanvasGroup mainCanvas;
+    public CanvasGroup subCanvas;
+    public Image healthStatusImage;
+    public GameObject comeOutIcon;
+    public GameObject struggleIcon;
+    public GameObject joystickIcon;
+    public GameObject cancelActionIcon;
+    public TextMeshProUGUI contextNameText;
+    public Image pickupUIImage;
+
+    [Header("Animator")]
+    public Animator characterAnimator;
+    public Animator statusHealthAnimator;
+    [Header("Handphone")]
+    public RectTransform handphoneHandle;
+    public CanvasGroup closePhoneButton;
+    public HandphoneHandleController handphoneHandleController;
+
+    [Header("Tutorial")]
+    public TutorialController tutorialController;
+
+    [Header("Inspect Kit")]
+    public GameObject cameraInspectObject;
+    public TextMeshProUGUI inspectInfoText; // tambahkan inspectText   
+    public GameObject inspectUIObject;
+    public GameObject inspectInfoUIObject;
+
+    public readonly float ReactRange = 2.5f;
+    public readonly float DetectionRange = 2.5f;
+
+    private CharacterController characterController;
+    private PlayerInputAction playerInputAction;
+
+    PlayerBaseState currentState;
+    ControlState controlState;
+    DisableState disableState;
+    InjuredState injuredState;
+    PickupState pickupState;
+    InspectState inspectState;
+    DeadState deadState;
+
+    public bool IsPlayerDisable() => currentState.Equals(disableState);
+
+    PlayerBaseState previousState;
+
+    [NonSerialized]
+    public LayerMask environmentMask;
+    [NonSerialized]
+    public LayerMask itemAndReactableMask;
+    [NonSerialized]
+    public LayerMask itemMask;
+    [NonSerialized]
+    public Transform mainScene;
+    [NonSerialized]
+    public bool enableTargetable;
+    [NonSerialized]
+    public Camera mainCamera;
+    [NonSerialized]
+    public InteractHideBase hideBase;
+    [NonSerialized]
+    public MovementController movementController;
+    [NonSerialized]
+    public FlashlightController flashlightController;
+    [NonSerialized]
+    public PlayerInventoryController playerInventoryController;
+
+    [ColorUsage(true, true)]
+    public Color highlightReactableColor;
+    [ColorUsage(true, true)]
+    public Color highlightItemColor;
+    [ColorUsage(true, true)]
+    public Color lowerBaseHighlightColor;
+
+    int lockerHideHash;
+    int bedHideHash;
+    int healthRateHash;
+    int struggleHash;
+
+    bool isOpenHandphone = false;
+    UnscaleTimeChecker openHandphoneUnscaleChecker;
+
+    InteractPickupBase pickingObject;
+    InteractInspectBase inspectingObject;
+
+    List<Material> hightlightItemMaterials = new();
+    List<Material> hightlightReactableMaterials = new();
+
+    Vector3 defaultPosition;
+    Quaternion defaultRotation;
+
+    float elapsedTimeColor = 0;
+
+    readonly float blendingColorDuration = 4f;
+
+    readonly float inspectSensitivity = 3.5f;
+
+    Dictionary<CancelButtonContextName, GameObject> cancelContextButtons = new();
+
+    public void SetDefaultPositionAndRotation(Vector3 position, Quaternion rotation)
+    {
+        defaultPosition = position;
+        defaultRotation = rotation;
+    }
+
+    Ray ReactRayCamera => mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+
+    public float HealthPercentage() => health / maximumHealth;
+    public int HealthPercentageToHealth(float percentage) => (int)(percentage * maximumHealth);
+    public void PlayerToMainScene() => transform.parent = mainScene;
+    public void SetAnimatorLockerHide(bool condition) => characterAnimator.SetBool(lockerHideHash, condition);
+    public void SetAnimatorBedHide(bool condition) => characterAnimator.SetBool(bedHideHash, condition);
+    public void SetAnimatorStruggle(float speed)
+    {
+        characterAnimator.SetTrigger(struggleHash);
+        characterAnimator.SetFloat("Struggle Speed", (speed / 10) + 1);
+    }
+
+    public void Fullhealth()
+    {
+        SetHealth(1);
+    }
+
+    public void SetHealth(float percentage)
+    {
+        health = HealthPercentageToHealth(percentage);
+        UpdateHealthStatus();
+    }
+
+    public void SetHealthFix(float health)
+    {
+        this.health = health;
+        UpdateHealthStatus();
+    }
+
+    public bool IsDying() => health <= 10;
+    public bool IsDead() => health <= 0;
+
+    public void ResetCameraHolder()
+    {
+        cameraHolder.localPosition = Vector3.zero;
+        cameraHolder.localRotation = Quaternion.identity;
+        movementController.ResetCameraToFront();
+    }
+
+    public void ResetCameraFromFalling()
+    {
+        Destroy(cameraFall);
+        cameraHolder.gameObject.SetActive(true);
+    }
+
+    public void SmoothResetCameraHolder()
+    {
+        LeanTween.moveLocal(cameraHolder.gameObject, Vector3.zero, 0.5f).setEaseInQuad();
+        LeanTween.rotateLocal(cameraHolder.gameObject, Quaternion.identity.eulerAngles, 0.5f).setEaseInQuad();
+    }
+
+    public void UpdateHealthStatus()
+    {
+        healthStatusImage.fillAmount = HealthPercentage();
+        statusHealthAnimator.SetFloat(healthRateHash, Mathf.Lerp(3, 1, HealthPercentage()));
+    }
+
+    public void EnableComeOut(bool condition)
+    {
+        comeOutIcon.SetActive(condition);
+        if (condition)
+        {
+            playerInputAction.Player.ComeOut.performed += ComeOutCallback();
+
+            return;
+        }
+        playerInputAction.Player.ComeOut.performed -= ComeOutCallback();
+    }
+
+    [ContextMenu("Enable Player")]
+    public void EnablePlayer() => SwitchState(controlState);
+    [ContextMenu("Disable Player")]
+    public void DisablePlayer() => SwitchState(disableState);
+    public void InteractPickupPlayer(InteractPickupBase objectToPick)
+    {
+        pickingObject = objectToPick;
+        SwitchState(pickupState);
+    }
+    public void InteractInspectPlayer(InteractInspectBase objectToInspect)
+    {
+        inspectingObject = objectToInspect;
+        SwitchState(inspectState);
+    }
+
+    [ContextMenu("Injured Player")]
+    public void InjuredPlayer() => SwitchState(injuredState);
+    public void InjuredPlayer(float setHealth)
+    {
+        SetHealthFix(setHealth);
+        SwitchState(injuredState);
+    }
+
+    [ContextMenu("Dead Player")]
+    public void DeadPlayer() => SwitchState(deadState);
+
+    void SetCancelObjectButtons()
+    {
+        foreach (CancelButtonContextName cancelButtonContextName in Enum.GetValues(typeof(CancelButtonContextName)))
+        {
+            cancelContextButtons.Add(cancelButtonContextName, null);
+        }
+    }
+    void AddCancelButton(CancelButtonContextName cancelContextName)
+    {
+        if (cancelContextButtons[cancelContextName] != null)
+        {
+            RemoveCancelButton(cancelContextName);
+        }
+        cancelContextButtons[cancelContextName] = Instantiate(cancelActionIcon, subCanvas.transform);
+        cancelContextButtons[cancelContextName].SetActive(true);
+    }
+    void RemoveCancelButton(CancelButtonContextName cancelContextName)
+    {
+        Destroy(cancelContextButtons[cancelContextName]);
+    }
+
+    public void SwitchState(PlayerBaseState state)
+    {
+        currentState?.SwitchingState();
+        state.InitializeState();
+        previousState = currentState;
+        currentState = state;
+    }
+
+    public void InitializeControlState()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        characterAnimator.enabled = true;
+
+        disableStateLightSource.SetActive(false);
+
+        movementController.EnableMovementState();
+        primaryEventPanel.alpha = 1;
+        primaryEventPanel.blocksRaycasts = true;
+        joystickIcon.SetActive(true);
+        characterController.detectCollisions = true;
+        enableTargetable = true;
+
+        playerInputAction.Player.Interact.performed += InteractCallback();
+        playerInputAction.Player.TakeItem.performed += TakeItemCallback();
+        playerInputAction.Player.UseBattery.performed += UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed += UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed += UseEnergyDrinkCallback();
+        CheckEssentialsItemExisted();
+    }
+
+    public void InitializeDisableState()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        flashlightController.SwitchOffState(false);
+        disableStateLightSource.SetActive(true);
+        joystickIcon.SetActive(false);
+        movementController.DisableMovementState();
+        primaryEventPanel.alpha = 0;
+        primaryEventPanel.blocksRaycasts = false;
+        characterController.detectCollisions = false;
+        enableTargetable = false;
+
+        playerInputAction.Player.Interact.performed -= InteractCallback();
+        playerInputAction.Player.TakeItem.performed -= TakeItemCallback();
+        playerInputAction.Player.LightSource.performed -= LightSourceCallback();
+        playerInputAction.Player.UseBattery.performed -= UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed -= UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed -= UseEnergyDrinkCallback();
+        playerInputAction.Player.Handphone.performed -= HandphoneCallback();
+    }
+
+    public void InitializeInjuredState()
+    {
+        characterAnimator.enabled = true;
+        movementController.InjuredMovementState();
+
+        disableStateLightSource.SetActive(true);
+
+        primaryEventPanel.alpha = 0;
+        primaryEventPanel.blocksRaycasts = false;
+        joystickIcon.SetActive(true);
+        characterController.detectCollisions = true;
+        enableTargetable = true;
+
+        playerInputAction.Player.Interact.performed -= InteractCallback();
+        playerInputAction.Player.TakeItem.performed -= TakeItemCallback();
+        playerInputAction.Player.UseBattery.performed -= UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed -= UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed -= UseEnergyDrinkCallback();
+        playerInputAction.Player.Handphone.performed -= HandphoneCallback();
+    }
+
+    public void InitializePickupState()
+    {
+        disableStateLightSource.SetActive(false);
+
+        movementController.EnableMovementState();
+        primaryEventPanel.alpha = 1;
+        primaryEventPanel.blocksRaycasts = true;
+        joystickIcon.SetActive(true);
+        characterController.detectCollisions = true;
+        enableTargetable = true;
+
+        interactableImage.gameObject.SetActive(false);
+        AddCancelButton(CancelButtonContextName.PickableObject);
+        playerInputAction.Player.Interact.performed -= InteractCallback();
+        playerInputAction.Player.Interact.performed += DropObjectCallback();
+
+        playerInputAction.Player.TakeItem.performed -= TakeItemCallback();
+    }
+
+    public void InitializeInspectState()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        mainCanvas.alpha = 0;
+        mainCanvas.blocksRaycasts = false;
+        movementController.DisableMovementState();
+        primaryEventPanel.alpha = 0;
+        primaryEventPanel.blocksRaycasts = false;
+        OpenInspect();
+
+        playerInputAction.Player.Interact.performed -= InteractCallback();
+        playerInputAction.Player.TakeItem.performed -= TakeItemCallback();
+        playerInputAction.Player.LightSource.performed -= LightSourceCallback();
+        playerInputAction.Player.UseBattery.performed -= UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed -= UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed -= UseEnergyDrinkCallback();
+        playerInputAction.Player.Handphone.performed -= HandphoneCallback();
+    }
+
+    public void InitializeDeadState()
+    {
+        characterAnimator.enabled = false;
+        InitializeDisableState();
+        cameraFall = Instantiate(cameraHolder.gameObject, cameraHolder.transform.position, cameraHolder.rotation, GameplayManager.Instance.mainScene);
+        cameraHolder.gameObject.SetActive(false);
+
+        cameraFall.AddComponent<BoxCollider>();
+        Rigidbody rigidbody = cameraFall.AddComponent<Rigidbody>();
+        rigidbody.AddForce(-Vector3.forward * 3, ForceMode.Impulse);
+        AudioExtendedManager.Instance.StopAudioType(AudioType.BGM);
+        LeanTween.delayedCall(3, () =>
+        {
+            GoogleMobileAdsManager.Instance.OfferRewardLoadCheckpoint();
+        });
+    }
+
+    public void InitializeOpenPhone()
+    {
+        mainCanvas.alpha = 0;
+        mainCanvas.blocksRaycasts = false;
+        movementController.DisableMovementState();
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        playerInputAction.Player.Interact.performed -= InteractCallback();
+        playerInputAction.Player.TakeItem.performed -= TakeItemCallback();
+        playerInputAction.Player.LightSource.performed -= LightSourceCallback();
+        playerInputAction.Player.UseBattery.performed -= UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed -= UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed -= UseEnergyDrinkCallback();
+        playerInputAction.Player.Handphone.performed -= HandphoneCallback();
+    }
+
+    public void InitializeClosePhone()
+    {
+        mainCanvas.alpha = 1;
+        mainCanvas.blocksRaycasts = true;
+        movementController.EnableMovementState();
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        playerInputAction.Player.Interact.performed += InteractCallback();
+        playerInputAction.Player.TakeItem.performed += TakeItemCallback();
+        playerInputAction.Player.UseBattery.performed += UseBatteryCallback();
+        playerInputAction.Player.UseMedkit.performed += UseMedkitCallback();
+        playerInputAction.Player.UseEnergyDrink.performed += UseEnergyDrinkCallback();
+        CheckEssentialsItemExisted();
+    }
+
+    public void UpdateControlState()
+    {
+        CheckReactableForHighlight();
+        CheckTouchInteractItem();
+        CheckDropableItemOrInteract();
+    }
+
+    public void UpdatePickupState()
+    {
+        MovePickedObject();
+    }
+
+    public void UpdateInspectState()
+    {
+        Vector2 inspectRotationValue = Vector2.zero;
+
+#if DEBUG
+        inspectRotationValue = playerInputAction.Player.Look.ReadValue<Vector2>();
+#endif
+
+        foreach (Touch touch in Touch.activeTouches)
+        {
+            if (touch.phase != UnityEngine.InputSystem.TouchPhase.Moved)
+            {
+                continue;
+            }
+            if (!InputManager.Instance.VerifiedTouch(touch))
+            {
+                continue;
+            }
+            inspectRotationValue.x += touch.delta.x;
+            inspectRotationValue.y += touch.delta.y;
+        }
+
+        inspectRotationValue *= inspectSensitivity * Time.fixedUnscaledDeltaTime;
+
+        // Dapatkan rotasi saat ini dari objek yang sedang diinspeksi
+        Quaternion currentRotation = inspectingObject.transform.localRotation;
+
+        // Hitung nilai rotasi baru untuk sumbu horizontal dan vertikal
+        Quaternion horizontalRotation = Quaternion.AngleAxis(inspectRotationValue.x, Vector3.up);
+        Quaternion verticalRotation = Quaternion.AngleAxis(-inspectRotationValue.y, Vector3.right);
+
+        // Gabungkan rotasi baru dengan rotasi saat ini
+        Quaternion newRotation = currentRotation * horizontalRotation * verticalRotation;
+
+        // Set rotasi baru ke objek
+        inspectingObject.transform.localRotation = newRotation;
+    }
+
+    public void SwitchingControlState()
+    {
+        DisableIfMaterialsNotNullToHighlight(hightlightItemMaterials);
+        DisableIfMaterialsNotNullToHighlight(hightlightReactableMaterials);
+        contextNameText.text = "";
+    }
+
+    public void SwitchingPickupState()
+    {
+        pickingObject.Interact(this);
+        pickingObject = null;
+        pickupUIImage.enabled = false;
+
+        RemoveCancelButton(CancelButtonContextName.PickableObject);
+
+        playerInputAction.Player.Interact.performed -= DropObjectCallback();
+    }
+
+    public void SwitchingInspectState()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        mainCanvas.alpha = 1;
+        mainCanvas.blocksRaycasts = true;
+        playerInputAction.Player.Close.performed -= SwitchToCloseInspectCallback();
+
+        CloseInspect();
+    }
+
+    void MovePickedObject()
+    {
+        pickingObject.transform.rotation = body.rotation * pickingObject.adjustPickRotation;
+
+        if (Physics.Raycast(ReactRayCamera, out RaycastHit hitItem, pickingObject.objectPickedRange, environmentMask))
+        {
+            pickingObject.transform.position = hitItem.point;
+        }
+        else
+        {
+            pickingObject.transform.position = mainCamera.transform.position + (mainCamera.transform.forward.normalized * pickingObject.objectPickedRange);
+        }
+        if (pickingObject.freezePositionPoint.y)
+        {
+            pickingObject.transform.position = new Vector3(pickingObject.transform.position.x, pickingObject.adjustPickPosition.y, pickingObject.transform.position.z);
+        }
+    }
+
+    public void CheckEssentialsItemExisted()
+    {
+        playerInventoryController.GetEssentialObtained(out bool isFlashlightExist, out bool isHandphoneExist);
+        if (isFlashlightExist)
+        {
+            playerInputAction.Player.LightSource.performed += LightSourceCallback();
+        }
+        if (isHandphoneExist)
+        {
+            playerInputAction.Player.Handphone.performed += HandphoneCallback();
+        }
+    }
+
+    public void StartStruggle(Action<InputAction.CallbackContext> callback)
+    {
+        struggleIcon.SetActive(true);
+        playerInputAction.Player.Struggle.performed += callback;
+    }
+
+    public void StopStruggle(Action<InputAction.CallbackContext> callback)
+    {
+        struggleIcon.SetActive(false);
+        playerInputAction.Player.Struggle.performed -= callback;
+    }
+
+    private void Awake()
+    {
+        mainCamera = cameraHolder.Find("Main Camera").GetComponent<Camera>();
+
+        lockerHideHash = Animator.StringToHash("Locker Hide");
+        bedHideHash = Animator.StringToHash("Bed Hide");
+        healthRateHash = Animator.StringToHash("Health Rate");
+        struggleHash = Animator.StringToHash("Struggle");
+
+        controlState = new ControlState(this);
+        disableState = new DisableState(this);
+        injuredState = new InjuredState(this);
+        pickupState = new PickupState(this);
+        inspectState = new InspectState(this);
+        deadState = new DeadState(this);
+
+        playerInventoryController = GetComponent<PlayerInventoryController>();
+        characterController = GetComponent<CharacterController>();
+        movementController = GetComponent<MovementController>();
+        flashlightController = GetComponent<FlashlightController>();
+
+        playerInputAction = new PlayerInputAction();
+        playerInputAction.Enable();
+
+        openHandphoneUnscaleChecker = new(1);
+
+        maximumHealth = maximumHealthAbility;
+        health = maximumHealth;
+
+        SetCancelObjectButtons();
+
+        EnablePlayer();
+    }
+
+    private void OnEnable()
+    {
+        EnhancedTouchSupport.Enable();
+    }
+
+    private void OnDisable()
+    {
+        EnhancedTouchSupport.Disable();
+    }
+
+    private void Start()
+    {
+        flashlightController.mainCamera = mainCamera;
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        enableTargetable = true;
+
+        UpdateHealthStatus();
+        EnableComeOut(false);
+
+    }
+
+    void Update()
+    {
+        currentState.UpdateState();
+    }
+
+    void DisableIfMaterialsNotNullToHighlight(List<Material> materials)
+    {
+        if (materials == null)
+        {
+            return;
+        }
+        MaterialHelper.DisableHighlightOnMaterial(materials);
+    }
+
+    void EnableIfMaterialsNotNullToHighlight(List<Material> materials, Color colorToBlend)
+    {
+        if (materials == null)
+        {
+            return;
+        }
+
+        elapsedTimeColor += Time.deltaTime;
+        float pingPongValue = Mathf.PingPong(elapsedTimeColor, blendingColorDuration);
+        Color blendColor = Color.Lerp(lowerBaseHighlightColor, colorToBlend, pingPongValue / blendingColorDuration);
+        MaterialHelper.EnableHightlightOnMaterials(materials, blendColor);
+    }
+
+    void DropObject()
+    {
+        SwitchState(controlState);
+    }
+
+    void Interact()
+    {
+        ValidateInteract(ReactRayCamera);
+    }
+
+    // void CheckTouchInteractItem()
+    // {
+    //     if (Touch.activeTouches.Count <= 0)
+    //     {
+    //         return;
+    //     }
+    //     var touches = Touch.activeTouches;
+    //     foreach (var touch in touches)
+    //     {
+    //         if (touch.phase != UnityEngine.InputSystem.TouchPhase.Ended)
+    //         {
+    //             continue;
+    //         }
+    //         if (!InputManager.Instance.VerifiedTouch(touch))
+    //         {
+    //             continue;
+    //         }
+    //         Vector3 touchPosition = touch.screenPosition;
+    //         Ray ray = Camera.main.ScreenPointToRay(touchPosition);
+
+    //         if (ValidateTakeItem(ray))
+    //         {
+    //             return;
+    //         }
+    //         ValidateTouchInteract(ray);
+    //     }
+    // }
+
+    bool ValidateInteract(Ray ray)
+    {
+        if (Physics.Raycast(ray, out RaycastHit hit, ReactRange, environmentMask))
+        {
+            if (hit.transform.gameObject.TryGetComponent(out IInteractable interactable))
+            {
+                interactable.Interact(this);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // bool ValidateTouchInteract(Ray ray)
+    // {
+    //     if (Physics.Raycast(ray, out RaycastHit hit, ReactRange, environmentMask))
+    //     {
+    //         if (hit.transform.gameObject.TryGetComponent(out IInteractable interactable) && interactable.TouchInteract())
+    //         {
+    //             interactable.Interact(this);
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    // void TakeItem()
+    // {
+    //     ValidateTakeItem(ReactRayCamera);
+    // }
+
+    // bool ValidateTakeItem(Ray ray)
+    // {
+    //     if (Physics.Raycast(ray, out RaycastHit hit, ReactRange, itemMask))
+    //     {
+    //         if (hit.transform.gameObject.TryGetComponent(out ITakeable itemable))
+    //         {
+    //             playerInventoryController.SetInventory(itemable.TakeItem(), out bool isSuccess);
+    //             if (isSuccess)
+    //             {
+    //                 MessageManager.Instance.PopItemObtained(itemable.GetItemType());
+    //                 AudioExtendedManager.Instance.Play(AudioName.SFX_PickItem);
+    //                 itemable.TakeItem().DestroyOnUse();
+    //                 return true;
+    //             }
+    //             MessageManager.Instance.PopMessage(MessageStringId.Message_Notice_FullItem);
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    void ComeOut()
+    {
+        if (hideBase == null)
+        {
+            return;
+        }
+
+        hideBase.ComeOut(this);
+        hideBase = null;
+    }
+
+
+    Action<InputAction.CallbackContext> InteractCallback() => ctx => Interact();
+
+    public bool EnableTargetable() => enableTargetable;
+    public Vector3 TargetPosition() => transform.position;
+    public bool IsTargetMove() => characterController.velocity != Vector3.zero;
+
+    public void TakeDamage(float damage)
+    {
+        health -= damage;
+
+        UpdateHealthStatus();
+
+        if (IsDead())
+        {
+            SwitchState(deadState);
+        }
+    }
+
+    public Vector3 GetDefaultPosition() => defaultPosition;
+    public Quaternion GetDefaultRotation() => defaultRotation;
+
+    public void SetDefaultPositionAndRotation()
+    {
+        StartCoroutine(StartSetDefaultPositionAndRotation());
+    }
+
+    IEnumerator StartSetDefaultPositionAndRotation()
+    {
+        DisablePlayer();
+        transform.SetPositionAndRotation(GetDefaultPosition(), GetDefaultRotation());
+        yield return new WaitForEndOfFrame();
+        EnablePlayer();
+    }
+
+    private void OnDestroy()
+    {
+        playerInputAction.Disable();
+    }
+}
+
+public enum CancelButtonContextName
+{
+    PickableObject,
+    Inspect
+}

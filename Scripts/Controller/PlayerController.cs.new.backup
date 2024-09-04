@@ -1,0 +1,181 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class PlayerController : MonoBehaviour
+{
+    [Header("Move stat")]
+    [SerializeField]
+    private float moveSpeed = 5f;
+    [SerializeField]
+    private float sensitivity = 2f;
+    [SerializeField]
+    private Transform playerCamera;
+    [SerializeField]
+    private Transform playerBody;
+    [SerializeField]
+    private float gravity = -9.81f;
+
+    private CharacterController controller;
+    private Vector3 velocity;
+    private float horizontalAxis = 0f;
+    private float verticalAxis = 0f;
+    private Vector2 moveInput;
+    private Vector2 lookInput;
+    private float modifierSpeed;
+
+    readonly float upVerticalLook = -90f;
+    readonly float downVerticalLook = 70f;
+
+    PlayerInputActions inputActions;
+
+    SMoonBaseState<PlayerController> currentState;
+    DisableMovementState disableMovementState;
+    NormalMovementState normalMovementState;
+
+    private void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+
+        inputActions = new();
+
+        disableMovementState = new(this);
+        normalMovementState = new(this);
+
+        SwitchState(normalMovementState);
+    }
+
+    private void OnEnable()
+    {
+        inputActions.Enable();
+    }
+
+    private void OnDisable()
+    {
+        inputActions.Disable();
+    }
+
+    void Movement()
+    {
+        // bool isRunning = playerInputAction.Player.Running.IsPressed();
+        moveInput = inputActions.Player.Move.ReadValue<Vector2>();
+
+        // movementValue = isRunning ? new Vector2(movementValue.x, 1) : movementValue;
+        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
+
+        // modifierSpeed = GetRunningModifierValue(isRunning);
+        Vector3 movementSpeed = move * moveSpeed;
+        controller.Move(movementSpeed * Time.deltaTime);
+        controller.SimpleMove(Vector3.zero);
+        // characterAnimator.SetFloat(moveHash, normalizeSpeed(movementSpeed.magnitude));
+    }
+
+
+    void Look()
+    {
+        lookInput = inputActions.Player.Look.ReadValue<Vector2>();
+
+        lookInput *= sensitivity * Time.fixedDeltaTime;
+
+        horizontalAxis = transform.localEulerAngles.y + lookInput.x;
+        verticalAxis -= lookInput.y;
+        verticalAxis = Mathf.Clamp(verticalAxis, upVerticalLook, downVerticalLook);
+        transform.localEulerAngles = new Vector3(0, horizontalAxis, 0);
+        playerCamera.transform.localEulerAngles = new Vector3(verticalAxis, 0, 0);
+    }
+
+    private void Update()
+    {
+        currentState.UpdateState();
+    }
+
+    /// <summary>
+    /// Input Actions
+    /// </summary>
+
+    /// <summary>
+    /// State Collection
+    /// </summary>
+
+    void SwitchState(SMoonBaseState<PlayerController> state)
+    {
+        state?.LeaveState();
+        currentState = state;
+        state.EnterState();
+    }
+    internal void DisableMovementUpdate()
+    {
+
+    }
+
+    internal void DisableMovementEnter()
+    {
+
+    }
+
+    internal void DisableMovementLeave()
+    {
+
+    }
+
+    internal void NormalMovementUpdate()
+    {
+        Movement();
+        Look();
+    }
+
+    internal void NormalMovementEnter()
+    {
+
+    }
+
+    internal void NormalMovementLeave()
+    {
+
+    }
+
+    public class DisableMovementState : SMoonBaseState<PlayerController>
+    {
+        public DisableMovementState(PlayerController component) : base(component)
+        {
+        }
+
+        public override void EnterState()
+        {
+            component.DisableMovementEnter();
+        }
+
+        public override void LeaveState()
+        {
+            component.DisableMovementLeave();
+        }
+
+        public override void UpdateState()
+        {
+            component.DisableMovementUpdate();
+        }
+    }
+
+    public class NormalMovementState : SMoonBaseState<PlayerController>
+    {
+        public NormalMovementState(PlayerController component) : base(component)
+        {
+        }
+
+        public override void EnterState()
+        {
+            component.NormalMovementEnter();
+        }
+
+        public override void LeaveState()
+        {
+            component.NormalMovementLeave();
+        }
+
+        public override void UpdateState()
+        {
+            component.NormalMovementUpdate();
+        }
+    }
+
+}
+
