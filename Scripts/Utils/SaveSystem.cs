@@ -5,8 +5,7 @@ using UnityEngine;
 
 public class PlayerData
 {
-    // public HeroineStatusScriptableObject firliHeroineStatus;
-    // public HeroineStatusScriptableObject 
+
 }
 
 public class SaveSystem
