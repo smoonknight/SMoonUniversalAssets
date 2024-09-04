@@ -5,13 +5,18 @@ using UnityEngine;
 [System.Serializable]
 public class FillChecker
 {
-    public FillChecker(float fillRequired)
-    {
-        this.fillRequired = fillRequired;
-    }
+
     public FillChecker()
     {
 
+    }
+    public FillChecker(float fillRequired, bool isFill = false)
+    {
+        this.fillRequired = fillRequired;
+        if (isFill == true)
+        {
+            fillAmount = fillRequired;
+        }
     }
 
     public float fillAmount = 0;
