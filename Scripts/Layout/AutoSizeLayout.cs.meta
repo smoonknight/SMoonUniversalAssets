@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: b8460cfa7b1860c458f078bfc55dfe27
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 204473
+  packageName: Custom Layout Group
+  packageVersion: 1.1
+  assetPath: Assets/Custom Layout Group/Scripts/AutoSizeLayout.cs
+  uploadId: 528095
