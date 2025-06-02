@@ -1,7 +1,10 @@
 using UnityEngine;
 
-[System.Serializable]
-public class UnscaleTimeChecker : TimeChecker
+namespace SMoonUniversalAsset
 {
-    public override float GetTime() => Time.unscaledTime;
+    [System.Serializable]
+    public class UnscaleTimeChecker : TimeChecker
+    {
+        public override float GetTime() => Time.unscaledTime;
+    }
 }

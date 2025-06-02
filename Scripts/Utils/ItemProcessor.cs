@@ -1,31 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ItemProcessor
+public static class ItemProcessor
 {
-    private static readonly Dictionary<Item, string> itemNames = new Dictionary<Item, string>()
-    {
-        { Item.Coin, "Coin" },
-        { Item.RawMeat, "Raw Meat" },
-        { Item.RabbyHorn, "Rabby Horn" },
-        { Item.Skin, "Skin" },
-        { Item.Fang, "Fang" },
-        { Item.BlankChest, "Blank Chest" },
-        { Item.MimicTongue, "Mimic Tongue" },
-        { Item.SnikiBlood, "Sniki Blood" },
-        { Item.SnikiFang, "Sniki Fang" },
-        { Item.Cloth, "Cloth" },
-        { Item.Gelatin, "Gelatin" },
-        { Item.Book, "Book" },
-        { Item.Yakisoba, "Yakisoba" },
-        { Item.AdultBook, "Adult Book" },
-        { Item.MelonPan, "Melon Pan" },
-        { Item.Candy, "Candy" },
-        { Item.Sugar, "Sugar" },
-        { Item.BrokenCrystal, "Broken Crystal" },
-        { Item.Markup, "Markup" }
-    };
-
     private static readonly Dictionary<RarityDrop, float> rarityDropRates = new Dictionary<RarityDrop, float>() {
         {RarityDrop.Guaranteed, 1f},
         {RarityDrop.Common, 0.6f},
@@ -47,20 +24,42 @@ public class ItemProcessor
         }
     }
 
-    public static string GetItemNameWithSpaces(Item item)
+    public static ItemType GetAddressableItemType(FishItemType fishItemType)
     {
-        if (itemNames.ContainsKey(item))
+        return fishItemType switch
         {
-            return itemNames[item];
-        }
-        else
+            FishItemType.Fishnishim => ItemType.Fishnishim,
+            FishItemType.StripedPuffinno => ItemType.StripedPuffinno,
+            FishItemType.Swordfish => ItemType.Swordfish,
+            FishItemType.Dugong => ItemType.Dugong,
+            FishItemType.Catfish => ItemType.Catfish,
+            FishItemType.Mohawksquid => ItemType.Mohawksquid,
+            FishItemType.Cherrypuff => ItemType.Cherrypuff,
+            FishItemType.Untitled => ItemType.Untitled,
+            FishItemType.AlphaWhale => ItemType.AlphaWhale,
+            _ => throw new System.NotImplementedException(),
+        };
+    }
+
+    public static FishItemType GetFishItemType(ItemType itemType)
+    {
+        return itemType switch
         {
-            return "Unknown Item";
-        }
+            ItemType.Fishnishim => FishItemType.Fishnishim,
+            ItemType.StripedPuffinno => FishItemType.StripedPuffinno,
+            ItemType.Swordfish => FishItemType.Swordfish,
+            ItemType.Dugong => FishItemType.Dugong,
+            ItemType.Catfish => FishItemType.Catfish,
+            ItemType.Mohawksquid => FishItemType.Mohawksquid,
+            ItemType.Cherrypuff => FishItemType.Cherrypuff,
+            ItemType.Untitled => FishItemType.Untitled,
+            ItemType.AlphaWhale => FishItemType.AlphaWhale,
+            _ => throw new System.NotImplementedException(),
+        };
     }
 }
 
-public enum Item
+public enum ItemType
 {
     Coin,
     RawMeat,
@@ -80,7 +79,71 @@ public enum Item
     Candy,
     Sugar,
     BrokenCrystal,
-    Markup
+    Markup,
+    ZStamina,
+    Medicine,
+    TeaPack,
+    CoffeeCup,
+    IceCream,
+    Condom,
+    FirstAid,
+    BandageStrip,
+    SuspiciousMedicine,
+    RoastedChicken,
+    NasiGoreng,
+    RiceSalt,
+    Omelet,
+    Steak,
+    Salad,
+    SweetCandy,
+    TeddyBear,
+    SchoolStationery,
+    StrawberryCake,
+    Fishnishim,
+    StripedPuffinno,
+    Swordfish,
+    Dugong,
+    Catfish,
+    Mohawksquid,
+    Cherrypuff,
+    Untitled,
+    AlphaWhale,
+    Balloon,
+    Boots,
+    TrashCan,
+    BrokenNet,
+    Sandal,
+    TrashChest,
+    Collar,
+    FilledCan,
+    GreenAlgae,
+    Pants,
+    Pearl,
+    Ring,
+    TreasureChest,
+    FishingRod
+}
+
+public enum FishItemType
+{
+    Fishnishim,
+    StripedPuffinno,
+    Swordfish,
+    Dugong,
+    Catfish,
+    Mohawksquid,
+    Cherrypuff,
+    Untitled,
+    AlphaWhale,
+}
+
+public enum ItemCategoryType
+{
+    NonUseable,
+    Useable,
+    Key,
+    Fish,
+    Trash
 }
 
 

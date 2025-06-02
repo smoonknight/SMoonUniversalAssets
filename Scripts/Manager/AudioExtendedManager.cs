@@ -1,32 +1,55 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using System.Linq;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.InputSystem;
 
 public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtendedManager>
 {
     public AudioMixerGroupData audioMixerGroupData;
     public AnimationCurve customRollOffCurve;
-
+    [SerializeField]
+    private AudioName clickAudioName;
     public Sound[] sounds;
 
     Dictionary<AudioName, Sound> soundDictionary = new();
 
+    MusicName? currentMusicName = null;
+    AudioName? currentMusicAudioName = null;
+
+    private DefaultInputActions inputActions;
+
     float VolumeMixer(float value) => Mathf.Lerp(-40f, 0f, value);
     float FocusMixer(float value) => Mathf.Lerp(-50f, 0f, value);
     float LowpassMixer(float value) => Mathf.Lerp(10, 22000, value);
-    public void SetAudioMixerBGMVolume() => SetAudioMixerBGMVolume(PlayerPrefsManager.Instance.GetFloat(FloatPrefsEnum.Settings_Audio_BGM_Volume));
     public void SetAudioMixerBGMVolume(float volume) => SetAudioMixerVolume(audioMixerGroupData.BGM, volume);
-
-    public void SetAudioMixerSFXVolume() => SetAudioMixerSFXVolume(PlayerPrefsManager.Instance.GetFloat(FloatPrefsEnum.Settings_Audio_SFX_Volume));
     public void SetAudioMixerSFXVolume(float volume) => SetAudioMixerVolume(audioMixerGroupData.SFX, volume);
-
-    public void SetAudioMixerVoiceVolume() => SetAudioMixerVoiceVolume(PlayerPrefsManager.Instance.GetFloat(FloatPrefsEnum.Settings_Audio_Voice_Volume));
     public void SetAudioMixerVoiceVolume(float volume) => SetAudioMixerVolume(audioMixerGroupData.Voice, volume);
 
-    public void SetAudioMixerLowpass(float value) => SetAudioMixerParam(audioMixerGroupData.BGM, LowpassMixer(value), "Lowpass BGM");
+    public void SetAudioMixerBGMLowpass(float value, bool isSmoothly = true)
+    {
+        if (isSmoothly)
+        {
+            SetAudioMixerBGMLowpassSmoothly(value);
+        }
+        else
+        {
+            SetAudioMixerParam(audioMixerGroupData.BGM, LowpassMixer(value), "Lowpass BGM");
+        }
+    }
+
+    public void SetAudioMixerBGMLowpassSmoothly(float value)
+    {
+        if (leanTweenLowpassId != 0) LeanTween.cancel(leanTweenLowpassId);
+        GetAudioMixerParam(audioMixerGroupData.BGM, "Lowpass BGM", out float currentValue);
+        leanTweenLowpassId = LeanTween.value(currentValue, LowpassMixer(value), 0.5f).setOnUpdate((value) =>
+        {
+            SetAudioMixerParam(audioMixerGroupData.BGM, value, "Lowpass BGM");
+        }).id;
+    }
 
     public void SetAudioMixerBGMFocus(float value) => SetAudioMixerParam(audioMixerGroupData.BGM, FocusMixer(value), "FocusBGM");
     public void SetAudioMixerBGMSmoothFocus(float from, float to, bool isUnscaleTime)
@@ -39,10 +62,15 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
 
     public void SetAudioMixerVolume(AudioMixerGroup audioMixerGroup, float volume) => SetAudioMixerParam(audioMixerGroup, VolumeMixer(volume), audioMixerGroup.name);
     public void SetAudioMixerParam(AudioMixerGroup audioMixerGroup, float volume, string param) => audioMixerGroup.audioMixer.SetFloat(param, volume);
+    public void GetAudioMixerParam(AudioMixerGroup audioMixerGroup, string param, out float value) => audioMixerGroup.audioMixer.GetFloat(param, out value);
+
+    int leanTweenLowpassId = 0;
 
     protected override void Awake()
     {
         base.Awake();
+
+        inputActions = new();
         foreach (Sound sound in sounds)
         {
             sound.source = gameObject.AddComponent<AudioSource>();
@@ -52,11 +80,13 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
             sound.source.pitch = sound.pitch;
             sound.source.loop = sound.loop;
             sound.source.outputAudioMixerGroup = GetAudioMixerGroup(sound.audioType);
+            sound.source.playOnAwake = false;
         }
 
         SetSoundDictionary();
     }
 
+    Action<InputAction.CallbackContext> ClickCallbackContext => (ctx) => Play(clickAudioName);
     public AudioMixerGroup GetAudioMixerGroup(AudioType audioType)
     {
         return audioType switch
@@ -68,11 +98,7 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         };
     }
 
-    private void Start()
-    {
-        SetAudioMixerBGMVolume();
-        SetAudioMixerSFXVolume();
-    }
+    public void PlayClickSound() => Play(clickAudioName);
 
     public void SetSoundDictionary()
     {
@@ -82,9 +108,71 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         }
     }
 
-    public void Play(AudioName name, bool isFaded = false, float fadedTime = 1)
+    public async void WaitingSetMusicOnStopped(MusicName? musicName, bool isFaded = true)
     {
-        Sound sound = soundDictionary[name];
+        Sound sound = currentMusicAudioName.HasValue ? soundDictionary[currentMusicAudioName.Value] : null;
+        if (sound == null)
+        {
+            Debug.LogWarning($"Can't set music on stopped because sound is null");
+            return;
+        }
+        if (sound.loop)
+        {
+            Debug.LogWarning($"Can't set music on stopped because sound is looped");
+            return;
+        }
+        await UniTask.WaitUntil(() => !sound.source.isPlaying);
+        SetMusic(musicName, isFaded);
+    }
+    public void SetMusicOutDuration(MusicName? musicName, out float remainingMusicDuration, bool isFaded = true)
+    {
+        SetMusic(musicName, out Sound sound, isFaded);
+        remainingMusicDuration = sound != null ? sound.clip.length - sound.source.time : 0;
+    }
+
+    public void SetMusic(MusicName? musicName, out Sound sound, bool isFaded = true)
+    {
+        currentMusicAudioName = GetAudioNameByMusicAudioName(musicName);
+
+        if (currentMusicName == musicName)
+        {
+            sound = currentMusicAudioName.HasValue ? soundDictionary[currentMusicAudioName.Value] : null;
+            return;
+        }
+
+        currentMusicName = musicName;
+
+        StopAudioType(AudioType.BGM, currentMusicAudioName, isFaded, 1);
+
+        if (currentMusicAudioName.HasValue)
+        {
+            Play(currentMusicAudioName.Value, out sound, isFaded);
+        }
+        else
+        {
+            sound = null;
+        }
+    }
+
+    public void SetMusic(MusicName? musicName, bool isFaded = true)
+    {
+        SetMusic(musicName, out _, isFaded);
+    }
+
+    private static readonly Dictionary<MusicName, AudioName> musicToAudioMap = Enum.GetValues(typeof(MusicName))
+        .Cast<MusicName>()
+        .Where(m => Enum.TryParse(m.ToString(), out AudioName result))
+        .ToDictionary(m => m, m => (AudioName)Enum.Parse(typeof(AudioName), m.ToString()));
+
+    public static AudioName? GetAudioNameByMusicAudioName(MusicName? musicAudioName)
+    {
+        if (musicAudioName == null) return null;
+        return musicToAudioMap.TryGetValue(musicAudioName.Value, out var audioName) ? audioName : null;
+    }
+
+    public void Play(AudioName name, out Sound sound, bool isFaded = false, float fadedTime = 1)
+    {
+        sound = soundDictionary[name];
 
         if (sound == null)
         {
@@ -108,6 +196,10 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         }
         sound.source.volume = 1;
         sound.source.Play();
+    }
+    public void Play(AudioName name, bool isFaded = false, float fadedTime = 1)
+    {
+        Play(name, out _, isFaded, fadedTime);
     }
 
     public AudioClip GetAudioClip(AudioName name)
@@ -180,7 +272,7 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         sound.source.Stop();
     }
 
-    public void StopAudioType(AudioType type)
+    public void StopAudioType(AudioType type, AudioName? exceptAudioName = null, bool isFaded = false, float fadedTime = 1f)
     {
         Sound[] soundAll = Array.FindAll(sounds, sound => sound.audioType == type);
         if (soundAll == null)
@@ -189,7 +281,14 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         }
         foreach (var sound in soundAll)
         {
-            sound.source.Stop();
+            if (exceptAudioName.HasValue)
+            {
+                if (sound.audioName == exceptAudioName.Value)
+                {
+                    continue;
+                }
+            }
+            Stop(sound.audioName, isFaded, fadedTime);
         }
     }
 
@@ -204,13 +303,25 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
     private IEnumerator FadedOut(Sound sound, float fadedTime)
     {
         float elapsedTime = 0;
+        bool isAbort = false;
         while (elapsedTime <= fadedTime)
         {
             yield return null;
             elapsedTime += Time.deltaTime;
             sound.source.volume = Mathf.Lerp(1, 0, elapsedTime / fadedTime);
+
+            if (GetAudioNameByMusicAudioName(currentMusicName) == sound.audioName)
+            {
+                sound.source.volume = 1;
+                isAbort = true;
+                break;
+            }
         }
-        sound.source.Stop();
+
+        if (!isAbort)
+        {
+            sound.source.Stop();
+        }
     }
 
     private IEnumerator FadedIn(Sound sound, float fadedTime)
@@ -298,12 +409,11 @@ public enum AudioType
     BGM,
     SFX,
     VOICE,
-    BGM_BacksoundMusic
 }
 
 public enum AudioName
 {
-    BGM_MAINMENU,
+    BGM_MAINMENU_MAIN,
     BGM_HOUSE_1,
     BGM_HOUSE_2,
     BGM_HOUSE_3,
@@ -315,7 +425,67 @@ public enum AudioName
     BGM_BATTLE_3,
     SFX_SCHOOL_RING,
     SFX_SMALL_SHOT,
-    SFX_SLASH,
+    SFX_HIT,
     SFX_LASER,
-    SFX_CLICK
+    SFX_CLICK,
+    SFX_ACTIVATION_READY,
+    SFX_ACTIVATION_NOTREADY,
+    SFX_NOTIFICATION_POP,
+    SFX_OPENBOOK,
+    SFX_SWEEPBOOK,
+    SFX_NOTIFICATION_CLEAR,
+    SFX_NOTIFICATION_DENIED,
+    BGM_BATTLE_LOSE,
+    BGM_BATTLE_WIN,
+    BGM_MAINMENU_BOOT,
+    SFX_PUT,
+    SFX_WRITING,
+    SFX_FANFARE,
+    BGM_SLEEPING,
+    SFX_BIG_SHOT,
+    SFX_SLASH,
+    SFX_SLASH2,
+    SFX_FALLING_OBJECT,
+    SFX_SRING,
+    SFX_SHEATHED,
+    SFX_STAB,
+    SFX_SLAM,
+    SFX_PIPESOUNDEFFECT,
+    SFX_HEAL,
+    SFX_MAGICAL_SPELL,
+    SFX_COOKING,
+    SFX_PING,
+    BGM_WEEKEND,
+    BGM_LAKE,
+    BGM_FISHING_BITING,
+    BGM_FISHING_REELING,
+    BGM_FISHING_REELINGNEXT,
+    BGM_FISHING_FAIL,
+    BGM_FISHING_CATCH,
+    SFX_DING_DONG
+}
+
+public enum MusicName
+{
+    BGM_HOUSE_1,
+    BGM_HOUSE_2,
+    BGM_HOUSE_3,
+    BGM_SCHOOL_1,
+    BGM_SCHOOL_2,
+    BGM_SCHOOL_3,
+    BGM_BATTLE_1,
+    BGM_BATTLE_2,
+    BGM_BATTLE_3,
+    BGM_BATTLE_WIN,
+    BGM_BATTLE_LOSE,
+    BGM_MAINMENU_BOOT,
+    BGM_MAINMENU_MAIN,
+    BGM_SLEEPING,
+    BGM_WEEKEND,
+    BGM_LAKE,
+    BGM_FISHING_BITING,
+    BGM_FISHING_REELING,
+    BGM_FISHING_REELINGNEXT,
+    BGM_FISHING_FAIL,
+    BGM_FISHING_CATCH
 }

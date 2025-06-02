@@ -8,19 +8,24 @@ public class LanguageLocateScriptableObjectEditor : Editor
 {
     private SerializedProperty indonesiaLanguageLocateData;
     private SerializedProperty englishLanguageLocateData;
+    private SerializedProperty japaneseLanguageLocateData;
 
     private void OnEnable()
     {
         indonesiaLanguageLocateData = serializedObject.FindProperty("indonesiaLanguageLocateData");
         englishLanguageLocateData = serializedObject.FindProperty("englishLanguageLocateData");
+        japaneseLanguageLocateData = serializedObject.FindProperty("japaneseLanguageLocateData");
     }
 
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
+        DrawDefaultInspector();
+
         DrawLanguageLocateData(indonesiaLanguageLocateData, "Indonesian Language Data");
         DrawLanguageLocateData(englishLanguageLocateData, "English Language Data");
+        DrawLanguageLocateData(japaneseLanguageLocateData, "Japanese Language Data");
 
         serializedObject.ApplyModifiedProperties();
     }

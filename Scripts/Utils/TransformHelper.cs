@@ -1,38 +1,43 @@
 using System.Collections;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 public static class TransformHelper
 {
-    public static void DestroyChilds(Transform transform)
+    public static void DestroyChilds(this Transform transform)
     {
+        if (transform == null) return;
         foreach (Transform child in transform)
         {
-            GameObject.Destroy(child.gameObject);
+            Object.Destroy(child.gameObject);
         }
     }
 
-    public static void DestroyChildsImmediately(Transform transform)
+    public static void DestroyChildsWithExceptTag(this Transform transform, string exceptTag)
     {
+        if (transform == null) return;
         foreach (Transform child in transform)
         {
-            GameObject.DestroyImmediate(child.gameObject, true);
+            if (child.CompareTag(exceptTag)) continue;
+            Object.Destroy(child.gameObject);
         }
     }
 
-    // IEnumerator UpdateLayout(RectTransform rectTransform)
-    // {
-    //     int updateCount = 0;
+    public static async UniTask UpdateLayout(RectTransform rectTransform)
+    {
+        int updateCount = 0;
 
-    //     while (updateCount < 10)
-    //     {
-    //         yield return null;
-    //         rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x + 0.1f, rectTransform.sizeDelta.y);
-    //         rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x - 0.1f, rectTransform.sizeDelta.y);
-    //         rectTransform.ForceUpdateRectTransforms();
-    //         updateCount += 1;
-    //     }
-    // }
+        while (updateCount < 5)
+        {
+            await UniTask.NextFrame();
+            rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x + 0.1f, rectTransform.sizeDelta.y);
+            await UniTask.NextFrame();
+            rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x - 0.1f, rectTransform.sizeDelta.y);
+            rectTransform.ForceUpdateRectTransforms();
+            updateCount += 1;
+        }
+    }
 
     public static List<T> GetComponentsRecursively<T>(List<Collider> colliders) where T : Component
     {

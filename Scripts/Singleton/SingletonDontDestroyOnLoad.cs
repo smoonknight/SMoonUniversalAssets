@@ -1,39 +1,10 @@
 using UnityEngine;
 
-public class SingletonWithDontDestroyOnLoad<T> : MonoBehaviour where T : MonoBehaviour
+public class SingletonWithDontDestroyOnLoad<T> : Singleton<T> where T : MonoBehaviour
 {
-    private static T instance;
-
-    public static T Instance
+    protected override void OnNullSetup()
     {
-        get
-        {
-            // if (instance == null)
-            // {
-            //     instance = FindObjectOfType<T>();
-
-            //     if (instance == null)
-            //     {
-            //         GameObject obj = new GameObject();
-            //         obj.name = typeof(T).Name;
-            //         instance = obj.AddComponent<T>();
-            //     }
-            // }
-
-            return instance;
-        }
-    }
-
-    protected virtual void Awake()
-    {
-        if (instance == null)
-        {
-            instance = this as T;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        base.OnNullSetup();
+        DontDestroyOnLoad(gameObject);
     }
 }

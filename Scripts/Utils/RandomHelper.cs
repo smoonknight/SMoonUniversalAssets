@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public static class RandomHelper
 {
@@ -33,4 +35,24 @@ public static class RandomHelper
         int randomIndex = Random.Range(0, list.Length);
         return list[randomIndex];
     }
+
+    public static T GetRandom<T>(this List<T> list)
+    {
+        int randomIndex = Random.Range(0, list.Count);
+        return list[randomIndex];
+    }
+
+    public static T GetRandomEnum<T>() where T : Enum
+    {
+        Array values = Enum.GetValues(typeof(T));
+        return (T)values.GetValue(Random.Range(0, values.Length));
+    }
+
+    public static T GetRandomEnumWithExcept<T>(T except) where T : Enum
+    {
+        var values = Enum.GetValues(typeof(T)).Cast<T>().Where(v => !v.Equals(except)).ToList();
+        if (values.Count == 0) throw new InvalidOperationException("No other enum values available.");
+        return values[UnityEngine.Random.Range(0, values.Count)];
+    }
+
 }
