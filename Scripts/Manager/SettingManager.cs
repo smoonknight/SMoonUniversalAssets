@@ -12,9 +12,9 @@ namespace SMoonUniversalAsset
 
         PlayerSetting playerSetting;
 
-        protected override void Awake()
+        protected override void OnAwake()
         {
-            base.Awake();
+            base.OnAwake();
 
             playerSetting = SaveSystem.LoadPlayerSetting();
         }
@@ -23,7 +23,7 @@ namespace SMoonUniversalAsset
             Initialize();
             if (!playerSetting.hasFirstLaunchSetting)
             {
-                Raise();
+                Raise(false);
                 playerSetting.hasFirstLaunchSetting = true;
             }
         }
@@ -40,12 +40,12 @@ namespace SMoonUniversalAsset
 
         public LanguageType LanguageType => playerSetting.languageType;
 
-        public void Raise()
+        public void Raise(bool showMainMenuButton)
         {
+            SetMainMenuButtonCondition(showMainMenuButton);
             settingView.gameObject.SetActive(true);
             playerSetting = SaveSystem.LoadPlayerSetting();
             settingView.Initialize(playerSetting);
-            Time.timeScale = 0;
         }
 
         public void SetMainMenuButtonCondition(bool condition)
@@ -57,7 +57,6 @@ namespace SMoonUniversalAsset
         {
             SavePlayerSettingAndSet(playerSetting);
             settingView.gameObject.SetActive(false);
-            Time.timeScale = 1;
         }
 
         public void SavePlayerSettingAndSet(PlayerSetting playerSetting)
@@ -78,7 +77,7 @@ namespace SMoonUniversalAsset
             soundSFXPercentage = 1,
             soundBGMPercentage = 1,
             soundVoicePercentage = 1,
-            languageType = GetLanguageTypeBySystemLangauge(),
+            languageType = LanguageType.Indonesia,
             qualitySettingsIndex = 2,
             targetFrameRate = 60,
             hasFirstLaunchSetting = false,

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
@@ -6,11 +7,11 @@ public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
 
     public static T Instance => instance;
 
-    protected virtual void Awake()
+    protected void Awake()
     {
         if (instance == null)
         {
-            OnNullSetup();
+            OnAwake();
         }
         else
         {
@@ -18,7 +19,7 @@ public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
         }
     }
 
-    protected virtual void OnNullSetup()
+    protected virtual void OnAwake()
     {
         instance = this as T;
     }

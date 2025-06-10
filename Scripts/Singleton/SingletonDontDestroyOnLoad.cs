@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class SingletonWithDontDestroyOnLoad<T> : Singleton<T> where T : MonoBehaviour
 {
-    protected override void OnNullSetup()
+    protected override void OnAwake()
     {
-        base.OnNullSetup();
+        base.OnAwake();
         DontDestroyOnLoad(gameObject);
     }
 }

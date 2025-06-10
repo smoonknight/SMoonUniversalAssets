@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public abstract class BaseState<T> where T : Component
@@ -11,4 +12,5 @@ public abstract class BaseState<T> where T : Component
     public abstract void EnterState();
     public abstract void UpdateState();
     public abstract void LeaveState();
+    public abstract void FixedUpdateState();
 }

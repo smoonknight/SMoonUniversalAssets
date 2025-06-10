@@ -7,30 +7,27 @@ using Random = UnityEngine.Random;
 public class AudioClipSamples
 {
     public List<AudioClip> audioClips;
-    List<int> availableIndices = new();
+    [ReadOnly]
+    public int currentIndex = 0;
 
-    private void InitializeIndices()
+    public bool IsHaveSample() => audioClips.Count != 0;
+
+    public AudioClip GetClip()
     {
-        availableIndices.Clear();
-        for (int i = 0; i < audioClips.Count; i++)
+        if (currentIndex == 0)
         {
-            availableIndices.Add(i);
-        }
-    }
-
-    public AudioClip GetRandomStepSound()
-    {
-        if (audioClips.Count == 0) return null;
-
-        if (availableIndices.Count == 0)
-        {
-            InitializeIndices();
+            audioClips.Randomize();
         }
 
-        int randomIndex = Random.Range(0, availableIndices.Count);
-        int clipIndex = availableIndices[randomIndex];
-        availableIndices.RemoveAt(randomIndex);
+        AudioClip audioClip = audioClips[currentIndex];
 
-        return audioClips[clipIndex];
+        currentIndex++;
+
+        if (currentIndex >= audioClips.Count)
+        {
+            currentIndex = 0;
+        }
+
+        return audioClip;
     }
 }

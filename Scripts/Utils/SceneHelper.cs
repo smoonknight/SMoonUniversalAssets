@@ -9,7 +9,7 @@ public class SceneHelper
         return sceneManagerEnum switch
         {
             SceneEnum.MAINMENU => "Scene_MainMenu",
-            SceneEnum.GAMEPLAY_MAIN => "Scene_Main",
+            SceneEnum.GAMEPLAY_ROGUE => "Scene_Rogue",
             SceneEnum.GAMEPLAY_DEBUG => "Scene_Debug",
             _ => throw new System.ArgumentOutOfRangeException(nameof(sceneManagerEnum), $"Unhandled sceneManagerEnum: {sceneManagerEnum}")
         };
@@ -22,7 +22,7 @@ public class SceneHelper
         return sceneName switch
         {
             "Scene_MainMenu" => SceneEnum.MAINMENU,
-            "Scene_Main" => SceneEnum.GAMEPLAY_MAIN,
+            "Scene_Rogue" => SceneEnum.GAMEPLAY_ROGUE,
             "Scene_Debug" => SceneEnum.GAMEPLAY_DEBUG,
             _ => throw new System.ArgumentOutOfRangeException(nameof(sceneName), $"Unhandled sceneName: {sceneName}")
         };
@@ -36,14 +36,11 @@ public class SceneHelper
 
     static public void CheckSceneRequire(SceneEnum sceneManagerEnum)
     {
-        if (sceneManagerEnum == SceneEnum.MAINMENU)
-        {
-            BootManager.Instance.Recall(SingletonBootType.GameManager, GameManager.Instance);
-        }
+
     }
 }
 
 public enum SceneEnum
 {
-    MAINMENU, GAMEPLAY_MAIN, GAMEPLAY_DEBUG
+    MAINMENU, GAMEPLAY_ROGUE, GAMEPLAY_DEBUG
 }

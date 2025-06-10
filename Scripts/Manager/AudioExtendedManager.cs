@@ -48,7 +48,7 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         leanTweenLowpassId = LeanTween.value(currentValue, LowpassMixer(value), 0.5f).setOnUpdate((value) =>
         {
             SetAudioMixerParam(audioMixerGroupData.BGM, value, "Lowpass BGM");
-        }).id;
+        }).setIgnoreTimeScale(true).id;
     }
 
     public void SetAudioMixerBGMFocus(float value) => SetAudioMixerParam(audioMixerGroupData.BGM, FocusMixer(value), "FocusBGM");
@@ -66,9 +66,9 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
 
     int leanTweenLowpassId = 0;
 
-    protected override void Awake()
+    protected override void OnAwake()
     {
-        base.Awake();
+        base.OnAwake();
 
         inputActions = new();
         foreach (Sound sound in sounds)
@@ -414,78 +414,20 @@ public enum AudioType
 public enum AudioName
 {
     BGM_MAINMENU_MAIN,
-    BGM_HOUSE_1,
-    BGM_HOUSE_2,
-    BGM_HOUSE_3,
-    BGM_SCHOOL_1,
-    BGM_SCHOOL_2,
-    BGM_SCHOOL_3,
-    BGM_BATTLE_1,
-    BGM_BATTLE_2,
-    BGM_BATTLE_3,
-    SFX_SCHOOL_RING,
-    SFX_SMALL_SHOT,
-    SFX_HIT,
-    SFX_LASER,
+    BGM_GAMEPLAY_0,
+    BGM_GAMEPLAY_0_END,
     SFX_CLICK,
-    SFX_ACTIVATION_READY,
-    SFX_ACTIVATION_NOTREADY,
-    SFX_NOTIFICATION_POP,
-    SFX_OPENBOOK,
-    SFX_SWEEPBOOK,
-    SFX_NOTIFICATION_CLEAR,
-    SFX_NOTIFICATION_DENIED,
-    BGM_BATTLE_LOSE,
-    BGM_BATTLE_WIN,
-    BGM_MAINMENU_BOOT,
-    SFX_PUT,
-    SFX_WRITING,
-    SFX_FANFARE,
-    BGM_SLEEPING,
-    SFX_BIG_SHOT,
-    SFX_SLASH,
-    SFX_SLASH2,
-    SFX_FALLING_OBJECT,
-    SFX_SRING,
-    SFX_SHEATHED,
-    SFX_STAB,
-    SFX_SLAM,
-    SFX_PIPESOUNDEFFECT,
+    SFX_COIN,
     SFX_HEAL,
-    SFX_MAGICAL_SPELL,
-    SFX_COOKING,
-    SFX_PING,
-    BGM_WEEKEND,
-    BGM_LAKE,
-    BGM_FISHING_BITING,
-    BGM_FISHING_REELING,
-    BGM_FISHING_REELINGNEXT,
-    BGM_FISHING_FAIL,
-    BGM_FISHING_CATCH,
-    SFX_DING_DONG
+    SFX_THREE,
+    SFX_TWO,
+    SFX_ONE,
+    SFX_FANFARE
 }
 
 public enum MusicName
 {
-    BGM_HOUSE_1,
-    BGM_HOUSE_2,
-    BGM_HOUSE_3,
-    BGM_SCHOOL_1,
-    BGM_SCHOOL_2,
-    BGM_SCHOOL_3,
-    BGM_BATTLE_1,
-    BGM_BATTLE_2,
-    BGM_BATTLE_3,
-    BGM_BATTLE_WIN,
-    BGM_BATTLE_LOSE,
-    BGM_MAINMENU_BOOT,
     BGM_MAINMENU_MAIN,
-    BGM_SLEEPING,
-    BGM_WEEKEND,
-    BGM_LAKE,
-    BGM_FISHING_BITING,
-    BGM_FISHING_REELING,
-    BGM_FISHING_REELINGNEXT,
-    BGM_FISHING_FAIL,
-    BGM_FISHING_CATCH
+    BGM_GAMEPLAY_0,
+    BGM_GAMEPLAY_0_END
 }

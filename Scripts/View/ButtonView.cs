@@ -1,6 +1,7 @@
 using System;
 using SMoonUniversalAsset;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -17,6 +18,7 @@ public class ButtonView : TextViewBase, IPointerEnterHandler, IPointerExitHandle
 
     private Func<string> secondaryTextFunc;
     private UnityAction<Vector2, bool> onHoverAction;
+    private UnityAction onClearAction;
 
     public string Text => labelText.text;
 
@@ -32,7 +34,8 @@ public class ButtonView : TextViewBase, IPointerEnterHandler, IPointerExitHandle
     void Action()
     {
         action?.Invoke();
-        SetSecondaryText(secondaryTextFunc?.Invoke());
+        if (secondaryTextFunc != null)
+            SetSecondaryText(secondaryTextFunc.Invoke());
     }
 
     public void ChangeInteractable(bool condition) => button.interactable = condition;
@@ -44,6 +47,12 @@ public class ButtonView : TextViewBase, IPointerEnterHandler, IPointerExitHandle
         Initialize(buttonAction);
     }
 
+    public void Initialize(string text, string secondaryText, UnityAction buttonAction)
+    {
+        Initialize(text, buttonAction);
+        SetSecondaryText(secondaryText);
+    }
+
     public void Initialize(UnityAction buttonAction)
     {
         action = buttonAction;
@@ -51,8 +60,11 @@ public class ButtonView : TextViewBase, IPointerEnterHandler, IPointerExitHandle
 
     public void Clear()
     {
+        onClearAction?.Invoke();
+        onClearAction = null;
         action = null;
-        labelText.text = "";
+        secondaryTextFunc = null;
+        onHoverAction = null;
     }
 
     public void ChangeButtonColor(Color color)
@@ -112,5 +124,14 @@ public class ButtonView : TextViewBase, IPointerEnterHandler, IPointerExitHandle
     public void OnPointerMove(PointerEventData eventData)
     {
         onHoverAction?.Invoke(eventData.position, true);
+    }
+
+    /// <summary>
+    /// Call only one time when Process Clear Function
+    /// </summary>
+    /// <param name="onClearAction"></param>
+    public void SetOnClearAction(UnityAction onClearAction)
+    {
+        this.onClearAction = onClearAction;
     }
 }

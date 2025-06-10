@@ -28,7 +28,6 @@ namespace SMoonUniversalAsset
             }
         }
 
-
         public static void SetAt<T>(this List<T> list, int index, T value)
         {
             list.EnsureSize(index + 1);

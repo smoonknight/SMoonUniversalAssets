@@ -12,9 +12,9 @@ public class ConsoleGUI : SingletonWithDontDestroyOnLoad<ConsoleGUI>
     void OnEnable() { Application.logMessageReceived += Log; }
     void OnDisable() { Application.logMessageReceived -= Log; }
 
-    protected override void Awake()
+    protected override void OnAwake()
     {
-        base.Awake();
+        base.OnAwake();
 
         if (!enableConsoleLog)
         {

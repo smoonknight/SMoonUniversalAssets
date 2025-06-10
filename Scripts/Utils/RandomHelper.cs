@@ -42,6 +42,16 @@ public static class RandomHelper
         return list[randomIndex];
     }
 
+    public static T GetRandomWithExcept<T>(this List<T> list, T except)
+    {
+        if (except == null)
+        {
+            return list.GetRandom();
+        }
+        List<T> values = list.Where(v => !v.Equals(except)).ToList();
+        return values.GetRandom();
+    }
+
     public static T GetRandomEnum<T>() where T : Enum
     {
         Array values = Enum.GetValues(typeof(T));
@@ -55,4 +65,15 @@ public static class RandomHelper
         return values[UnityEngine.Random.Range(0, values.Count)];
     }
 
+    public static void Randomize<T>(this List<T> list)
+    {
+        var rng = new System.Random();
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = rng.Next(n + 1);
+            (list[n], list[k]) = (list[k], list[n]);
+        }
+    }
 }

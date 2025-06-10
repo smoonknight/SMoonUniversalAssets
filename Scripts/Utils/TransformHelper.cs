@@ -56,7 +56,7 @@ public static class TransformHelper
 
     public static List<T> GetComponentsRecursively<T>(Transform currentTransform) where T : Component
     {
-        List<T> componentsList = new List<T>();
+        List<T> componentsList = new();
 
         void GetComponents(Transform transform)
         {
@@ -76,5 +76,6 @@ public static class TransformHelper
         return componentsList;
     }
 
+    public static bool CompareWithLayerIndex(this LayerMask layerMask, int index) => layerMask == (layerMask | (1 << index));
     public static bool CompareLayermaskWithLayerIndex(LayerMask layerMask, int index) => layerMask == (layerMask | (1 << index));
 }

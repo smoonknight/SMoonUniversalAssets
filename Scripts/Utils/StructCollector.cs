@@ -1,6 +1,31 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+
+
+[Serializable]
+public class PointDataPropertyWithTransform<T> : PointDataProperty<T> where T : Enum
+{
+    public Transform transform;
+
+    /// <summary>
+    /// Snap Point Data from transform position and rotation, delete after snap
+    /// </summary>
+    public void SnapPointData()
+    {
+        pointData.position = transform.position;
+        pointData.rotation = transform.rotation;
+        UnityEngine.Object.Destroy(transform.gameObject);
+    }
+}
+
+[System.Serializable]
+public class PointDataProperty<T> where T : Enum
+{
+    public T type;
+    public PointData pointData;
+}
 
 [System.Serializable]
 public struct PointData

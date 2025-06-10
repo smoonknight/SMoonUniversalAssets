@@ -36,7 +36,7 @@ namespace SMoonUniversalAsset
             int hours = Mathf.FloorToInt(timeInMinutes / 60f % 24);
             int minutes = Mathf.FloorToInt(timeInMinutes % 60f);
 
-            return string.Format(StringId.DayIndex.ToCommonLanguage() + " {0} {1:D2}:{2:D2}", days, hours, minutes);
+            return string.Format("{0} {1:D2}:{2:D2}", days, hours, minutes);
         }
 
         public static string FormatTime12H(int timeInMinutes)
