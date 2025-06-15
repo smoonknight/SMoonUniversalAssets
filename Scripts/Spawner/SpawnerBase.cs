@@ -29,7 +29,7 @@ namespace SMoonUniversalAsset
                 spawnProperty.instance = instance;
             }
 
-            int poolSize = GetInitialPoolSize();
+            int poolSize = initialPoolSize;
             spawnedPropertyPool = new HashSet<G>(poolSize);
 
             for (int i = 0; i < poolSize; i++)
@@ -96,8 +96,6 @@ namespace SMoonUniversalAsset
         }
 
         protected abstract G CreateCopy(G spawnProperty);
-
-        protected int GetInitialPoolSize() => initialPoolSize * spawnProperties.Count;
     }
 
     public abstract class SingleSpawnerBase<T> : SpawnerBase<T, SpawnProperty<T>> where T : Component

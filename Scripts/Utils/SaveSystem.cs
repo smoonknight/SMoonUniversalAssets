@@ -10,7 +10,7 @@ namespace SMoonUniversalAsset
 {
     public static class SaveSystem
     {
-        private static readonly string encryptionKey = "SMoonSmoonClassr"; // 16, 24, atau 32 karakter sesuai AES
+        private static readonly string encryptionKey = "SMoonSmoonClassr";
         private static readonly string settingFilename = "settings";
         private static string CreateFileName(int number) => $"playerdata_{number}.{extension}";
         private static readonly string checkpointFileName = "checkpoint.checkpointdata";
