@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [System.Serializable]
-public class ExperienceStat
+public partial class ExperienceStat
 {
     /// <summary>
     /// Level with startLevel
