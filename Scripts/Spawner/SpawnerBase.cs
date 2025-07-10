@@ -12,34 +12,14 @@ namespace SMoonUniversalAsset
         [SerializeField] protected Transform pool;
         [SerializeField] protected int initialPoolSize = 20;
 
-        [SerializeField] protected List<G> spawnProperties;
-
         protected HashSet<G> spawnedPropertyPool;
 
-        public virtual void Initialize()
+        public abstract void Initialize();
+
+        protected void CloneSpawnPropertyToSpawnedPropertyPool(G spawnProperty, bool setActiveValue, out T newComponent)
         {
-            for (int i = 0; i < spawnProperties.Count; i++)
-            {
-                G spawnProperty = spawnProperties[i];
-                bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
-                T instance = reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
-                instance.gameObject.SetActive(false);
-                instance.name = spawnProperty.component.name;
-
-                spawnProperty.instance = instance;
-            }
-
-            int poolSize = initialPoolSize;
-            spawnedPropertyPool = new HashSet<G>(poolSize);
-
-            for (int i = 0; i < poolSize; i++)
-            {
-                foreach (var spawnProperty in spawnProperties)
-                {
-                    G copyOfSpawnProperty = CreateCopy(spawnProperty);
-                    AddSpawnPropertyToSpawnedPropertyPool(copyOfSpawnProperty, false, out _);
-                }
-            }
+            spawnProperty = CreateCopy(spawnProperty);
+            AddSpawnPropertyToSpawnedPropertyPool(spawnProperty, setActiveValue, out newComponent);
         }
 
         protected void AddSpawnPropertyToSpawnedPropertyPool(G spawnedProperty, bool setActiveValue, out T instance)
@@ -58,7 +38,7 @@ namespace SMoonUniversalAsset
                 float time = 0;
                 while (time < duration)
                 {
-                    if (component == null || !component.gameObject.activeInHierarchy)
+                    if (component == null || !component.gameObject.activeSelf)
                     {
                         break;
                     }
@@ -70,7 +50,7 @@ namespace SMoonUniversalAsset
             }
             else
             {
-                await UniTaskExtensions.DelayWithCancel(duration, () => component == null || !component.gameObject.activeInHierarchy);
+                await UniTaskExtensions.DelayWithCancel(duration, () => component == null || !component.gameObject.activeSelf);
             }
             if (component != null)
                 component.gameObject.SetActive(false);
@@ -81,7 +61,7 @@ namespace SMoonUniversalAsset
             int count = 0;
             foreach (var spawnedProperty in spawnedPropertyPool)
             {
-                if (spawnedProperty.instance.gameObject.activeInHierarchy)
+                if (spawnedProperty.instance.gameObject.activeSelf)
                     count++;
             }
             return count;
@@ -100,15 +80,27 @@ namespace SMoonUniversalAsset
 
     public abstract class SingleSpawnerBase<T> : SpawnerBase<T, SpawnProperty<T>> where T : Component
     {
-        protected void AddSpawnPropertyToSpawnedPropertyPool(List<SpawnProperty<T>> spawnProperties, bool setActiveValue, out T newComponent)
+        [SerializeField]
+        protected SpawnProperty<T> spawnProperty;
+
+        public override void Initialize()
         {
-            SpawnProperty<T> selectedSpawnProperty = spawnProperties.FirstOrDefault();
-            if (selectedSpawnProperty.instance == null)
+            bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
+            T instance = reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
+            instance.gameObject.SetActive(false);
+            instance.name = spawnProperty.component.name;
+
+            spawnProperty.instance = instance;
+
+            int poolSize = initialPoolSize;
+
+            spawnedPropertyPool = new HashSet<SpawnProperty<T>>(poolSize);
+
+            for (int i = 0; i < poolSize; i++)
             {
-                throw new IndexOutOfRangeException("not found!");
+                SpawnProperty<T> copyOfSpawnProperty = CreateCopy(spawnProperty);
+                CloneSpawnPropertyToSpawnedPropertyPool(copyOfSpawnProperty, false, out _);
             }
-            selectedSpawnProperty = CreateCopy(selectedSpawnProperty);
-            AddSpawnPropertyToSpawnedPropertyPool(selectedSpawnProperty, setActiveValue, out newComponent);
         }
 
         public T GetSpawned(Vector3? position = null, Quaternion? rotation = null, Func<Vector3> onSetDeactiveOnDurationUpdate = null)
@@ -116,7 +108,7 @@ namespace SMoonUniversalAsset
             T component;
             foreach (var spawnedProperty in spawnedPropertyPool)
             {
-                if (spawnedProperty.instance.gameObject.activeInHierarchy)
+                if (spawnedProperty.instance.gameObject.activeSelf)
                 {
                     continue;
                 }
@@ -133,7 +125,7 @@ namespace SMoonUniversalAsset
                 return component;
             }
 
-            AddSpawnPropertyToSpawnedPropertyPool(spawnProperties, true, out component);
+            CloneSpawnPropertyToSpawnedPropertyPool(spawnProperty, true, out component);
             OnSpawn(component, onSetDeactiveOnDurationUpdate);
 
             return component;
@@ -152,16 +144,42 @@ namespace SMoonUniversalAsset
 
     public abstract class MultiSpawnerBase<T, G> : SpawnerBase<T, MultiSpawnProperty<T, G>> where T : Component where G : Enum
     {
+        [SerializeField] protected List<MultiSpawnProperty<T, G>> spawnProperties;
 
-        protected void AddSpawnPropertyToSpawnedPropertyPool(List<MultiSpawnProperty<T, G>> spawnProperties, G type, bool setActiveValue, out T newComponent)
+        public override void Initialize()
+        {
+            for (int i = 0; i < spawnProperties.Count; i++)
+            {
+                MultiSpawnProperty<T, G> spawnProperty = spawnProperties[i];
+                bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
+                T instance = reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
+                instance.gameObject.SetActive(false);
+                instance.name = spawnProperty.component.name;
+
+                spawnProperty.instance = instance;
+            }
+
+            int poolSize = initialPoolSize;
+
+            spawnedPropertyPool = new HashSet<MultiSpawnProperty<T, G>>(poolSize);
+
+            for (int i = 0; i < poolSize; i++)
+            {
+                foreach (var spawnProperty in spawnProperties)
+                {
+                    CloneSpawnPropertyToSpawnedPropertyPool(spawnProperty, false, out _);
+                }
+            }
+        }
+
+        protected void CloneSpawnPropertyToSpawnedPropertyPool(List<MultiSpawnProperty<T, G>> spawnProperties, G type, bool setActiveValue, out T newComponent)
         {
             MultiSpawnProperty<T, G> selectedSpawnProperty = spawnProperties.FirstOrDefault(spawnProperty => spawnProperty.type.Equals(type));
             if (selectedSpawnProperty.instance == null)
             {
                 throw new IndexOutOfRangeException(type + " not found!");
             }
-            selectedSpawnProperty = CreateCopy(selectedSpawnProperty);
-            AddSpawnPropertyToSpawnedPropertyPool(selectedSpawnProperty, setActiveValue, out newComponent);
+            CloneSpawnPropertyToSpawnedPropertyPool(selectedSpawnProperty, setActiveValue, out newComponent);
         }
 
         public T GetSpawned(G type, Vector3? position = null, Quaternion? rotation = null, Func<Vector3> onSetDeactiveOnDurationUpdate = null)
@@ -169,7 +187,7 @@ namespace SMoonUniversalAsset
             T component;
             foreach (var spawnedProperty in spawnedPropertyPool)
             {
-                if (spawnedProperty.instance.gameObject.activeInHierarchy)
+                if (spawnedProperty.instance.gameObject.activeSelf)
                 {
                     continue;
                 }
@@ -190,7 +208,7 @@ namespace SMoonUniversalAsset
                 return component;
             }
 
-            AddSpawnPropertyToSpawnedPropertyPool(spawnProperties, type, true, out component);
+            CloneSpawnPropertyToSpawnedPropertyPool(spawnProperties, type, true, out component);
             OnSpawn(component, type, onSetDeactiveOnDurationUpdate);
 
             return component;

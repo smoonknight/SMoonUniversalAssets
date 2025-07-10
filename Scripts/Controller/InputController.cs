@@ -3,7 +3,29 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 
 [RequireComponent(typeof(PlayerInput))]
-public class InputController : MonoBehaviour
+public partial class InputController : MonoBehaviour
+{
+    private void OnDisable()
+    {
+        OnDisableBase();
+    }
+
+    private void OnEnable()
+    {
+        OnEnableBase();
+    }
+
+    private void Awake()
+    {
+        AwakeBase();
+    }
+
+    partial void OnDisableBase();
+    partial void OnEnableBase();
+    partial void AwakeBase();
+}
+
+public partial class InputController : MonoBehaviour
 {
     [SerializeField] private PlayerInput playerInput;
 
@@ -25,8 +47,11 @@ public class InputController : MonoBehaviour
     public InputAction SwitchCursorAction { private set; get; }
     public InputAction PauseAction { private set; get; }
 
-    private void OnEnable()
+    partial void OnEnableBase()
     {
+        EnhancedTouchSupport.Enable();
+        _currentMap.Enable();
+
         LookAction.performed += OnLook;
         MoveAction.performed += OnMove;
         FireAction.performed += OnFire;
@@ -34,6 +59,7 @@ public class InputController : MonoBehaviour
         JumpAction.performed += OnJump;
         CrouchAction.started += OnCrouch;
 
+        LookAction.canceled += OnLook;
         MoveAction.canceled += OnMove;
         FireAction.canceled += OnFire;
         RunAction.canceled += OnRun;
@@ -41,13 +67,13 @@ public class InputController : MonoBehaviour
         CrouchAction.canceled += OnCrouch;
 
         SwitchCursorAction.performed += SwitchCursor;
-
-        EnhancedTouchSupport.Enable();
-        _currentMap.Enable();
     }
 
-    private void OnDisable()
+    partial void OnDisableBase()
     {
+        EnhancedTouchSupport.Disable();
+        _currentMap.Disable();
+
         MoveAction.performed -= OnMove;
         FireAction.performed -= OnFire;
         RunAction.performed -= OnRun;
@@ -61,15 +87,13 @@ public class InputController : MonoBehaviour
         CrouchAction.canceled -= OnCrouch;
 
         SwitchCursorAction.performed -= SwitchCursor;
-
-        EnhancedTouchSupport.Disable();
-        _currentMap.Disable();
     }
 
-    private void Awake()
+    partial void AwakeBase()
     {
         GameManager.Instance.SetCursor(false);
         _currentMap = playerInput.currentActionMap;
+        LookAction = _currentMap.FindAction("Look");
         MoveAction = _currentMap.FindAction("Move");
         FireAction = _currentMap.FindAction("Fire");
         RunAction = _currentMap.FindAction("Run");
@@ -89,7 +113,6 @@ public class InputController : MonoBehaviour
     {
         Look = context.ReadValue<Vector2>();
     }
-
 
     private void OnMove(InputAction.CallbackContext context)
     {
