@@ -15,7 +15,7 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
     private AudioName clickAudioName;
     public Sound[] sounds;
 
-    Dictionary<AudioName, Sound> soundDictionary = new();
+    public Dictionary<AudioName, Sound> soundDictionary = new();
 
     MusicName? currentMusicName = null;
     AudioName? currentMusicAudioName = null;
@@ -48,7 +48,7 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         leanTweenLowpassId = LeanTween.value(currentValue, LowpassMixer(value), 0.5f).setOnUpdate((value) =>
         {
             SetAudioMixerParam(audioMixerGroupData.BGM, value, "Lowpass BGM");
-        }).setIgnoreTimeScale(true).id;
+        }).id;
     }
 
     public void SetAudioMixerBGMFocus(float value) => SetAudioMixerParam(audioMixerGroupData.BGM, FocusMixer(value), "FocusBGM");
@@ -355,15 +355,16 @@ public class AudioExtendedManager : SingletonWithDontDestroyOnLoad<AudioExtended
         return audioSource;
     }
 
-    public AudioSource AddAudio3D(GameObject addedObject)
+    public AudioSource AddAudio3D(GameObject addedObject, AudioClip audioClip = null, bool playOnAwake = false, float maxDistance = 15, AudioType audioType = AudioType.SFX)
     {
         AudioSource audioSource = addedObject.AddComponent<AudioSource>();
         audioSource.spatialBlend = 1;
-        audioSource.playOnAwake = false;
+        audioSource.playOnAwake = playOnAwake;
         audioSource.rolloffMode = AudioRolloffMode.Custom;
-        audioSource.maxDistance = 15;
+        audioSource.maxDistance = maxDistance;
         audioSource.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRollOffCurve);
-        audioSource.outputAudioMixerGroup = audioMixerGroupData.SFX;
+        audioSource.outputAudioMixerGroup = GetAudioMixerGroup(audioType);
+        audioSource.clip = audioClip;
 
         return audioSource;
     }
@@ -409,25 +410,31 @@ public enum AudioType
     BGM,
     SFX,
     VOICE,
+    AMBIENT,
+    STEP
 }
 
 public enum AudioName
 {
-    BGM_MAINMENU_MAIN,
-    BGM_GAMEPLAY_0,
-    BGM_GAMEPLAY_0_END,
-    SFX_CLICK,
-    SFX_COIN,
-    SFX_HEAL,
-    SFX_THREE,
-    SFX_TWO,
-    SFX_ONE,
-    SFX_FANFARE
+    AMBIENT_INSIDEHOUSE,
+    SFX_OPENDOOR,
+    SFX_CLOSEDOOR,
+    SFX_WRITING,
+    MUSIC_RADIOSTATIC,
+    MUSIC_RADIO01,
+    MUSIC_RADIO02,
+    SFX_SWITCHON,
+    SFX_SWITCHOFF,
+    AMBIENT_BACKYARDHOUSE,
+    AMBIENT_FRONTYARDHOUSE
 }
 
 public enum MusicName
 {
-    BGM_MAINMENU_MAIN,
-    BGM_GAMEPLAY_0,
-    BGM_GAMEPLAY_0_END
+    AMBIENT_INSIDEHOUSE,
+    MUSIC_RADIOSTATIC,
+    MUSIC_RADIO01,
+    MUSIC_RADIO02,
+    AMBIENT_BACKYARDHOUSE,
+    AMBIENT_FRONTYARDHOUSE
 }
