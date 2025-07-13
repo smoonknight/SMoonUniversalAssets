@@ -7,6 +7,7 @@ using Random = UnityEngine.Random;
 public class AudioClipSamples
 {
     public List<AudioClip> audioClips;
+    public bool isRandomize = true;
     [ReadOnly]
     public int currentIndex = 0;
 
@@ -14,7 +15,7 @@ public class AudioClipSamples
 
     public AudioClip GetClip()
     {
-        if (currentIndex == 0)
+        if (isRandomize && currentIndex == 0)
         {
             audioClips.Randomize();
         }
