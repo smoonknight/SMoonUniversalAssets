@@ -5,7 +5,7 @@ public partial class GameManager : SingletonWithDontDestroyOnLoad<GameManager>
 {
     public GameInfoScriptableObject gameInfo;
 
-    public string GetPlayerName() => "Hisa";
+    public string GetPlayerName() => "Lorem";
     public string GameVersion => gameInfo.gameVersion;
 
     public void InitAllAction()
@@ -13,7 +13,10 @@ public partial class GameManager : SingletonWithDontDestroyOnLoad<GameManager>
 
     }
 
-    [Obsolete("SetCursor is currently bugged on mobile platforms. Cursor will always be visible On Android (visible = true) regardless of the isShow value.")]
+    /// <summary>
+    /// "SetCursor is currently bugged on mobile platforms. Cursor will always be visible On Android (visible = true) regardless of the isShow value."
+    /// </summary>
+    /// <param name="isShow">show cursor and setlockmode none</param>
     public void SetCursor(bool isShow)
     {
 #if !UNITY_STANDALONE_WIN

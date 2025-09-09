@@ -1,6 +1,7 @@
+
+
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-
 namespace SMoonUniversalAsset
 {
     public static class LeanTweenExtensions
@@ -14,5 +15,4 @@ namespace SMoonUniversalAsset
             return completionSource.Task;
         }
     }
-
 }

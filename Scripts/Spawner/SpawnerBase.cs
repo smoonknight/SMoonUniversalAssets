@@ -16,6 +16,12 @@ namespace SMoonUniversalAsset
 
         public abstract void Initialize();
 
+        protected T GetInstance(G spawnProperty)
+        {
+            bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
+            return reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
+        }
+
         protected void CloneSpawnPropertyToSpawnedPropertyPool(G spawnProperty, bool setActiveValue, out T newComponent)
         {
             spawnProperty = CreateCopy(spawnProperty);
@@ -85,8 +91,7 @@ namespace SMoonUniversalAsset
 
         public override void Initialize()
         {
-            bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
-            T instance = reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
+            T instance = GetInstance(spawnProperty);
             instance.gameObject.SetActive(false);
             instance.name = spawnProperty.component.name;
 
@@ -151,8 +156,7 @@ namespace SMoonUniversalAsset
             for (int i = 0; i < spawnProperties.Count; i++)
             {
                 MultiSpawnProperty<T, G> spawnProperty = spawnProperties[i];
-                bool reinstanceComponent = spawnProperty.component.gameObject.scene.rootCount == 0;
-                T instance = reinstanceComponent ? UnityEngine.Object.Instantiate(spawnProperty.component, pool) : spawnProperty.component;
+                var instance = GetInstance(spawnProperty);
                 instance.gameObject.SetActive(false);
                 instance.name = spawnProperty.component.name;
 
